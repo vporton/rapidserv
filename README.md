@@ -11,7 +11,7 @@ Rapidserv uses jinja2 although it doesn't enforce the usage.
 **A basic Web App**
 
 ~~~python
-from untwisted.plugins.rapidserv import RapidServ, core
+from rapidlib.rapidserv import RapidServ, core
 
 app = RapidServ(__file__)
 
