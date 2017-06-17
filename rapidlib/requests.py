@@ -3,7 +3,7 @@ from untwisted.splits import AccUntil, TmpFile
 from untwisted.network import Spin, xmap, spawn, zmap
 from untwisted.event import get_event
 from urllib import urlencode
-from untwisted.plugins import rapidserv
+from rapidlib import rapidserv
 from tempfile import TemporaryFile as tmpfile
 
 DEFAULT_HEADERS = {
@@ -95,5 +95,6 @@ def auth(username, password):
     base = encodestring('%s:%s' % (username, password))
     base = base.replace('\n', '')
     return "Basic %s" % base
+
 
 
