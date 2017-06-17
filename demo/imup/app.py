@@ -2,7 +2,7 @@
 
 """
 
-from rapidserv import RapidServ, make, HttpRequestHandle
+from rapidlib.rapidserv import RapidServ, make, HttpRequestHandle
 import shelve
 
 DB_FILENAME = 'DB'
@@ -34,6 +34,7 @@ def add_image(con, file):
 
 if __name__ == '__main__':
     app.run()
+
 
 
 

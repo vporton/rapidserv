@@ -1,7 +1,7 @@
 """
 """
 
-from rapidserv import RapidServ, core, xmap
+from rapidlib.rapidserv import RapidServ, core, xmap
 
 app = RapidServ(__file__)
 
@@ -23,6 +23,7 @@ class Simple(object):
 if __name__ == '__main__':
     app.bind('0.0.0.0', 80, 60)
     core.gear.mainloop()
+
 
 
 
