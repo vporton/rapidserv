@@ -47,3 +47,8 @@ if __name__ == '__main__':
     core.gear.mainloop()
 ~~~
 
+Documentation
+=============
+
+[Wiki](https://github.com/iogf/rapidserv/wiki)
+
