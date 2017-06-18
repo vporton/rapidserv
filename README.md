@@ -1,4 +1,4 @@
-# rapidserv
+# Rapidserv
 
 A micro web server and http library.
 
