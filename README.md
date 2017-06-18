@@ -8,7 +8,7 @@ that permits to perform asynchronous requests.
 Rapidserv is non blocking network I/O consequently it can scale a lot of connections and it is ideal for some applications. 
 Rapidserv uses jinja2 although it doesn't enforce the usage.
 
-**A basic Web App**
+**Web App**
 
 ~~~python
 from rapidlib.rapidserv import RapidServ, core
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     core.gear.mainloop()
 ~~~
 
-**A simple Http Client**
+**Http Client**
 
 ~~~python
 from rapidlib.requests import get, HttpResponseHandle
@@ -39,12 +39,10 @@ def on_done(con, response):
     print response.fd.read()
 
 if __name__ == '__main__':
-    urls = ['www.bol.uol.com.br', 'www.google.com']
-    
-    for ind in urls:
-        con = get(ind, 80, '/')
-        xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
+    xmap(get('codepad.org', 80, '/'), 
+    HttpResponseHandle.HTTP_RESPONSE, on_done)
     core.gear.mainloop()
+
 ~~~
 
 Documentation
