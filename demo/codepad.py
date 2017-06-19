@@ -29,9 +29,10 @@ if __name__ == '__main__':
                     'run': args.run
               }
     
-    con = post('codepad.org', 80, '/', payload=urlencode(payload))
+    con = post('http://codepad.org', '/', payload=urlencode(payload))
     xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
     core.gear.mainloop()
+
 
 
 

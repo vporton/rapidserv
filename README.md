@@ -46,7 +46,7 @@ def on_done(con, response):
     print response.fd.read()
 
 if __name__ == '__main__':
-    con = get('api.github.com', 443, '/user', 
+    con = get('https://api.github.com', '/user', 
     ssl=True, auth=('iogf', 'godhelpsme'))
 
     xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
@@ -57,6 +57,7 @@ if __name__ == '__main__':
 # Documentation
 
 [Wiki](https://github.com/iogf/rapidserv/wiki)
+
 
 
 

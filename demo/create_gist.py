@@ -11,7 +11,7 @@ def create():
     "public": "true", "files": {
     "file1.txt": {"content": "String file contents"}}}
 
-    con = post('api.github.com', 443, 
+    con = post('https://api.github.com',  
     '/gists', payload=json.dumps(payload), 
     headers={'content-type': 'application/json'}, ssl=True)
 
@@ -20,6 +20,7 @@ def create():
 if __name__ == '__main__':
     create()
     core.gear.mainloop()
+
 
 
 

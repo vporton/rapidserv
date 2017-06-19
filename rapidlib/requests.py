@@ -7,7 +7,8 @@ from untwisted.event import get_event
 from urllib import urlencode
 from rapidlib import rapidserv
 from tempfile import TemporaryFile as tmpfile
-
+from urlparse import urlparse
+from socket import getservbyname
 
 class Response(object):
     def __init__(self, data):
@@ -33,7 +34,7 @@ class HttpCode(object):
         xmap(spin, HttpResponseHandle.HTTP_RESPONSE, self.process)
 
     def process(self, spin, response):
-        pass
+        spawn(spin, response.code, response)
 
 def on_connect(spin, request):
     AccUntil(spin)
@@ -45,6 +46,7 @@ def on_connect(spin, request):
                         lambda spin, fd, data: fd.seek(0))
 
     HttpResponseHandle(spin)
+    HttpCode(spin)
     spin.dump(request)
 
 def create_con_ssl(addr, port, data):
@@ -57,12 +59,15 @@ def create_con(addr, port, data):
     xmap(con, CONNECT,  on_connect, data)
     return con
 
-def get(addr, port, path, args={},  headers={}, version='HTTP/1.1', ssl=False, auth=()):
+def get(addr, path, args={},  headers={}, version='HTTP/1.1', ssl=False, auth=()):
+    addr    = addr.strip().rstrip()
+    url     = urlparse(addr)
+
     default = {
     'user-agent':"Untwisted-requests/1.0.0", 
     'accept-charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
     'connection':'close',
-    'host': addr}
+    'host': url.hostname}
 
     default.update(headers)
     args = '?%s' % urlencode(args) if args else ''
@@ -73,19 +78,22 @@ def get(addr, port, path, args={},  headers={}, version='HTTP/1.1', ssl=False, a
     for key, value in default.iteritems():
         data = data + '%s: %s\r\n' % (key, value)
     data = data + '\r\n'
+    port = url.port if url.port else getservbyname(url.scheme)
 
-    return create_con_ssl(addr, port, data) if ssl else \
-        create_con(addr, port, data)
+    return create_con_ssl(url.hostname, port, data) if ssl else \
+        create_con(url.hostname, port, data)
 
-def post(addr, port, path, payload='', version='HTTP/1.1', headers={}, ssl=False, auth=()):
+def post(addr, path, payload='', version='HTTP/1.1', headers={}, ssl=False, auth=()):
     """
     """
+    addr    = addr.strip().rstrip()
+    url     = urlparse(addr)
 
     default = {
     'user-agent':"Untwisted-requests/1.0.0", 
     'accept-charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
     'connection':'close',
-    'host': addr,
+    'host': url.hostname,
     'content-type': 'application/x-www-form-urlencoded',
     'content-length': len(payload)}
 
@@ -98,14 +106,16 @@ def post(addr, port, path, payload='', version='HTTP/1.1', headers={}, ssl=False
         request = request + '%s: %s\r\n' % (key, value)
     request = request + '\r\n' + payload
 
-    return create_con_ssl(addr, port, request) if ssl else \
-        create_con(addr, port, request)
+    port = url.port if url.port else getservbyname(url.scheme)
+    return create_con_ssl(url.hostname, port, request) if ssl else \
+        create_con(url.hostname, port, request)
 
 def build_auth(username, password):
     from base64 import encodestring
     base = encodestring('%s:%s' % (username, password))
     base = base.replace('\n', '')
     return "Basic %s" % base
+
 
 
 
