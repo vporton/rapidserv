@@ -1,5 +1,6 @@
 from rapidlib.requests import get, HttpResponseHandle
 from untwisted.network import xmap, core
+from untwisted import iossl
 
 def on_done(con, response):
     print response.headers
@@ -9,13 +10,10 @@ def on_done(con, response):
     print response.fd.read()
 
 if __name__ == '__main__':
-    xmap(get('codepad.org', 80, '/'), 
-    HttpResponseHandle.HTTP_RESPONSE, on_done)
+    con = get('docs.python.org', 443, '/3/', ssl=True)
+
+    xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
     core.gear.mainloop()
-
-
-
-
 
 
 

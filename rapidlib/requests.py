@@ -1,6 +1,8 @@
-from untwisted.iostd import LOAD, CLOSE, CONNECT, CONNECT_ERR, Client, Stdin, Stdout, lose
+from untwisted.iostd import LOAD, CLOSE, CONNECT, CONNECT_ERR, \
+Client, Stdin, Stdout, lose, create_client
+from untwisted.iossl import SSL_CONNECT, create_client_ssl
 from untwisted.splits import AccUntil, TmpFile
-from untwisted.network import Spin, xmap, spawn, zmap
+from untwisted.network import Spin, xmap, spawn, zmap, SSL
 from untwisted.event import get_event
 from urllib import urlencode
 from rapidlib import rapidserv
@@ -39,8 +41,6 @@ class HttpCode(object):
         pass
 
 def on_connect(spin, request):
-    Stdin(spin)
-    Stdout(spin)
     AccUntil(spin)
     HttpTransferHandle(spin)
 
@@ -50,20 +50,19 @@ def on_connect(spin, request):
                         lambda spin, fd, data: fd.seek(0))
 
     HttpResponseHandle(spin)
-    xmap(spin, CLOSE, lambda con, err: lose(con))
-
     spin.dump(request)
 
-def create_connection(addr, port, request):
-    con  = Spin()
-    Client(con)
-    con.connect_ex((addr, port))
-
-    xmap(con, CONNECT,  on_connect, request)
-    xmap(con, CONNECT_ERR, lambda con, err: lose(con))
+def create_con_ssl(addr, port, data):
+    con = create_client_ssl(addr, port)  
+    xmap(con, SSL_CONNECT,  on_connect, data)
     return con
 
-def get(addr, port, path, args={}, version='HTTP/1.1', headers=DEFAULT_HEADERS):
+def create_con(addr, port, data):
+    con = create_client(addr, port)
+    xmap(con, CONNECT,  on_connect, data)
+    return con
+
+def get(addr, port, path, args={}, version='HTTP/1.1', headers=DEFAULT_HEADERS, ssl=False):
     args = '?%s' % urlencode(args) if args else ''
     headers['host'] = addr
 
@@ -72,10 +71,11 @@ def get(addr, port, path, args={}, version='HTTP/1.1', headers=DEFAULT_HEADERS):
     for key, value in headers.iteritems():
         data = data + '%s: %s\r\n' % (key, value)
     data = data + '\r\n'
-    spin = create_connection(addr, port, data)
-    return spin
 
-def post(addr, port, path, payload={}, version='HTTP/1.1', headers=DEFAULT_HEADERS):
+    return create_con_ssl(addr, port, data) if ssl else \
+        create_con(addr, port, data)
+
+def post(addr, port, path, payload={}, version='HTTP/1.1', headers=DEFAULT_HEADERS, ssl=False):
     payload                  = urlencode(payload)
     request                  = 'POST %s %s\r\n' % (path, version)
     # should be fixed the content type thing.
@@ -87,14 +87,16 @@ def post(addr, port, path, payload={}, version='HTTP/1.1', headers=DEFAULT_HEADE
     for key, value in headers.iteritems():
         request = request + '%s: %s\r\n' % (key, value)
     request = request + '\r\n' + payload
-    spin    = create_connection(addr, port, request)
-    return spin
+
+    return create_con_ssl(addr, port, request) if ssl else \
+        create_con(addr, port, request)
 
 def auth(username, password):
     from base64 import encodestring
     base = encodestring('%s:%s' % (username, password))
     base = base.replace('\n', '')
     return "Basic %s" % base
+
 
 
 
