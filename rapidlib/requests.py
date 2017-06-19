@@ -62,10 +62,11 @@ def create_con(addr, port, data):
     xmap(con, CONNECT,  on_connect, data)
     return con
 
-def get(addr, port, path, args={}, version='HTTP/1.1', headers=DEFAULT_HEADERS, ssl=False):
+def get(addr, port, path, args={}, version='HTTP/1.1', headers=DEFAULT_HEADERS, ssl=False, auth=()):
     args = '?%s' % urlencode(args) if args else ''
     headers['host'] = addr
 
+    if auth: headers['authorization'] = build_auth(*auth)
     data  = 'GET %s%s %s\r\n' % (path, args, version)
 
     for key, value in headers.iteritems():
@@ -91,7 +92,7 @@ def post(addr, port, path, payload={}, version='HTTP/1.1', headers=DEFAULT_HEADE
     return create_con_ssl(addr, port, request) if ssl else \
         create_con(addr, port, request)
 
-def auth(username, password):
+def build_auth(username, password):
     from base64 import encodestring
     base = encodestring('%s:%s' % (username, password))
     base = base.replace('\n', '')

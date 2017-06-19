@@ -9,10 +9,12 @@ def on_done(con, response):
     print response.fd.read()
 
 if __name__ == '__main__':
-    con = get('docs.python.org', 443, '/3/', ssl=True)
+    con = get('api.github.com', 443, '/user', 
+    ssl=True, auth=('iogf', 'godhelpsme'))
 
     xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
     core.gear.mainloop()
+
 
 
 

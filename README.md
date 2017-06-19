@@ -32,7 +32,7 @@ if __name__ == '__main__':
     core.gear.mainloop()
 ~~~
 
-**Http Client**
+**Web Client**
 
 ~~~python
 from rapidlib.requests import get, HttpResponseHandle
@@ -46,13 +46,15 @@ def on_done(con, response):
     print response.fd.read()
 
 if __name__ == '__main__':
-    xmap(get('codepad.org', 80, '/'), 
-    HttpResponseHandle.HTTP_RESPONSE, on_done)
-    core.gear.mainloop()
+    con = get('api.github.com', 443, '/user', 
+    ssl=True, auth=('iogf', 'godhelpsme'))
 
+    xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
+    core.gear.mainloop()
 ~~~
 
 # Documentation
 
 [Wiki](https://github.com/iogf/rapidserv/wiki)
+
 
