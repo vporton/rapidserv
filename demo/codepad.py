@@ -1,7 +1,7 @@
 """
 """
 
-from rapidlib.requests import HttpResponseHandle, post
+from rapidlib.requests import HttpResponseHandle, post, urlencode
 from untwisted.network import Spin, xmap, core, die
 import argparse
 
@@ -29,9 +29,10 @@ if __name__ == '__main__':
                     'run': args.run
               }
     
-    con = post('codepad.org', 80, '/', payload)
+    con = post('codepad.org', 80, '/', payload=urlencode(payload))
     xmap(con, HttpResponseHandle.HTTP_RESPONSE, on_done)
     core.gear.mainloop()
+
 
 
 

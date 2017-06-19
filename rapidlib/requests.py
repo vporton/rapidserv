@@ -8,11 +8,6 @@ from urllib import urlencode
 from rapidlib import rapidserv
 from tempfile import TemporaryFile as tmpfile
 
-DEFAULT_HEADERS = {
-    'user-agent':"Untwisted-requests/1.0.0", 
-    'accept-charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-    'connection':'close',
-    }
 
 class Response(object):
     def __init__(self, data):
@@ -62,30 +57,44 @@ def create_con(addr, port, data):
     xmap(con, CONNECT,  on_connect, data)
     return con
 
-def get(addr, port, path, args={}, version='HTTP/1.1', headers=DEFAULT_HEADERS, ssl=False, auth=()):
-    args = '?%s' % urlencode(args) if args else ''
-    headers['host'] = addr
+def get(addr, port, path, args={},  headers={}, version='HTTP/1.1', ssl=False, auth=()):
+    default = {
+    'user-agent':"Untwisted-requests/1.0.0", 
+    'accept-charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+    'connection':'close',
+    'host': addr}
 
-    if auth: headers['authorization'] = build_auth(*auth)
+    default.update(headers)
+    args = '?%s' % urlencode(args) if args else ''
+
+    if auth: default['authorization'] = build_auth(*auth)
     data  = 'GET %s%s %s\r\n' % (path, args, version)
 
-    for key, value in headers.iteritems():
+    for key, value in default.iteritems():
         data = data + '%s: %s\r\n' % (key, value)
     data = data + '\r\n'
 
     return create_con_ssl(addr, port, data) if ssl else \
         create_con(addr, port, data)
 
-def post(addr, port, path, payload={}, version='HTTP/1.1', headers=DEFAULT_HEADERS, ssl=False):
-    payload                  = urlencode(payload)
-    request                  = 'POST %s %s\r\n' % (path, version)
-    # should be fixed the content type thing.
-    headers['host'] = addr
+def post(addr, port, path, payload='', version='HTTP/1.1', headers={}, ssl=False, auth=()):
+    """
+    """
 
-    headers['content-type']   = 'application/x-www-form-urlencoded'
-    headers['content-length'] = len(payload)
+    default = {
+    'user-agent':"Untwisted-requests/1.0.0", 
+    'accept-charset':'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+    'connection':'close',
+    'host': addr,
+    'content-type': 'application/x-www-form-urlencoded',
+    'content-length': len(payload)}
 
-    for key, value in headers.iteritems():
+    default.update(headers)
+
+    request  = 'POST %s %s\r\n' % (path, version)
+    if auth: default['authorization'] = build_auth(*auth)
+
+    for key, value in default.iteritems():
         request = request + '%s: %s\r\n' % (key, value)
     request = request + '\r\n' + payload
 
