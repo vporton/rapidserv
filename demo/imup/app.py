@@ -2,12 +2,12 @@
 
 """
 
-from rapidserv import RapidServ, make, HttpRequestHandle
+from rapidserv import RapidServ, make, RequestHandle
 import shelve
 
 DB_FILENAME = 'DB'
 DB          = shelve.open(make(__file__, DB_FILENAME))
-HttpRequestHandle.MAX_SIZE = 1024 * 1024 * 3
+RequestHandle.MAX_SIZE = 1024 * 1024 * 3
 app    = RapidServ(__file__)
 
 @app.overflow
@@ -34,6 +34,7 @@ def add_image(con, file):
 
 if __name__ == '__main__':
     app.run()
+
 
 
 
