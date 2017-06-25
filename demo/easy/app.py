@@ -1,4 +1,4 @@
-fromrapidserv import RapidServ, core
+from rapidserv import RapidServ, core
 
 app = RapidServ(__file__)
 
@@ -10,6 +10,7 @@ def send_base(con, request):
 if __name__ == '__main__':
     app.bind('0.0.0.0', 8000, 50)
     core.gear.mainloop()
+
 
 
 
