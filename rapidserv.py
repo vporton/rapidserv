@@ -179,11 +179,8 @@ class TransferHandle(object):
     DONE = get_event()
 
     def __init__(self, spin):
-        xmap(spin, AccUntil.DONE, self.process_request)
-
-    def process_request(self, spin, request, data):
-        request = Request(request)
-        spawn(spin, TransferHandle.DONE, request, data)
+        xmap(spin, AccUntil.DONE, lambda spin, request, data:
+        spawn(spin, TransferHandle.DONE, Request(request), data))
 
 class RequestHandle(object):
     DONE = get_event()
@@ -332,6 +329,7 @@ def make(searchpath, folder):
     from os.path import join, abspath, dirname
     searchpath = join(dirname(abspath(searchpath)), folder)
     return searchpath
+
 
 
 
