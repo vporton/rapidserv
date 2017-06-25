@@ -108,9 +108,9 @@ class RapidServ(object):
         Stdin(spin)
         Stdout(spin)
         AccUntil(spin)
-        HttpTransferHandle(spin)
-        HttpRequestHandle(spin)
-        HttpMethodHandle(spin)
+        TransferHandle(spin)
+        RequestHandle(spin)
+        MethodHandle(spin)
 
         # must be improved.
         Locate(spin)
@@ -158,7 +158,7 @@ class RapidServ(object):
 
     def overflow(self, handle):
         xmap(self.local, ACCEPT, lambda local, spin: 
-                    xmap(spin, HttpRequestHandle.OVERFLOW, handle))
+                    xmap(spin, RequestHandle.OVERFLOW, handle))
 
 class Request(object):
     def __init__(self, data):
@@ -175,40 +175,40 @@ class Request(object):
         self.fd.seek(0)
         self.data = FieldStorage(fp=self.fd, environ=get_env(self.headers))
 
-class HttpTransferHandle(object):
-    HTTP_TRANSFER = get_event()
+class TransferHandle(object):
+    DONE = get_event()
 
     def __init__(self, spin):
         xmap(spin, AccUntil.DONE, self.process_request)
 
     def process_request(self, spin, request, data):
         request = Request(request)
-        spawn(spin, HttpTransferHandle.HTTP_TRANSFER, request, data)
+        spawn(spin, TransferHandle.DONE, request, data)
 
-class HttpRequestHandle(object):
-    HTTP_REQUEST = get_event()
+class RequestHandle(object):
+    DONE = get_event()
     OVERFLOW     = get_event()
     MAX_SIZE     = 1024 * 5024
 
     def __init__(self, spin):
         self.request = None
-        xmap(spin, HttpTransferHandle.HTTP_TRANSFER, self.process)
+        xmap(spin, TransferHandle.DONE, self.process)
         xmap(spin, TmpFile.DONE,  
                    lambda spin, fd, data: spawn(spin, 
-                                 HttpRequestHandle.HTTP_REQUEST, self.request))
+                                 RequestHandle.DONE, self.request))
 
     def process(self, spin, request, data):
         size         = int(request.headers.get('content-length', '0'))
         self.request = request
 
-        if HttpRequestHandle.MAX_SIZE <= size:
-            spawn(spin, HttpRequestHandle.OVERFLOW, request)
+        if RequestHandle.MAX_SIZE <= size:
+            spawn(spin, RequestHandle.OVERFLOW, request)
         else:
             TmpFile(spin, data, size, request.fd)
 
-class HttpMethodHandle(object):
+class MethodHandle(object):
     def __init__(self, spin):
-        xmap(spin, HttpRequestHandle.HTTP_REQUEST, self.process)
+        xmap(spin, RequestHandle.DONE, self.process)
 
     def process(self, spin, request):
         request.build_data()
@@ -229,11 +229,13 @@ class PersistentConnection(object):
         self.count = 0
         xmap(spin, TmpFile.DONE, self.process)
         xmap(spin, DUMPED, self.install_timeout)
-        xmap(spin, HttpTransferHandle.HTTP_TRANSFER, lambda spin, request, data: self.timer.cancel())
+
+        xmap(spin, TransferHandle.DONE, 
+        lambda spin, request, data: self.timer.cancel())
 
         spin.add_header(('connection', 'keep-alive'))
-        spin.add_header(('keep-alive', 'timeout=%s, max=%s' % (PersistentConnection.TIMEOUT, 
-                                                                        PersistentConnection.MAX)))
+        spin.add_header(('keep-alive', 'timeout=%s, max=%s' % (
+        PersistentConnection.TIMEOUT, PersistentConnection.MAX)))
 
     def process(self, spin, fd, data):
         self.count = self.count + 1
@@ -246,7 +248,7 @@ class PersistentConnection(object):
 
 class DebugRequest(object):
     def __init__(self, spin):
-        xmap(spin, HttpRequestHandle.HTTP_REQUEST, self.process)
+        xmap(spin, RequestHandle.DONE, self.process)
 
     def process(self, spin, request):
         print request.method
@@ -330,6 +332,7 @@ def make(searchpath, folder):
     from os.path import join, abspath, dirname
     searchpath = join(dirname(abspath(searchpath)), folder)
     return searchpath
+
 
 
 
