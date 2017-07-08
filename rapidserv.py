@@ -29,11 +29,16 @@ class Headers(dict):
 class Spin(network.Spin):
     def __init__(self, sock, app):
         network.Spin.__init__(self, sock)
-        self.app          = app
-        self.response     = ''
-        self.headers      = dict()
-        self.data         = ''
+        self.app      = app
+        self.response = ''
+        self.headers  = dict()
+        self.data     = ''
+        self.wsaccept = ''
+
         self.add_default_headers()
+
+    def set_wsaccept(self, key):
+        self.wsaccept = key
 
     def add_default_headers(self):
         self.set_response('HTTP/1.1 200 OK')
@@ -49,6 +54,21 @@ class Spin(network.Spin):
     def add_data(self, data, mimetype='text/html;charset=utf-8'):
         self.add_header(('Content-Type', mimetype))
         self.data = str(data)
+
+    def handshake(self, protocol):
+        """
+        Do websocket handshake.
+        """
+
+        self.set_response('HTTP/1.1 101 Switching Protocols')
+        self.add_header(('Upgrade', 'websocket'), ('Connection', 'Upgrade'), 
+        ('Sec-Websocket-Protocol', protocol),
+        ('Sec-Websocket-Accept', self.wsaccept))
+
+        self.send_headers()
+        self.dump(self.data)
+        self.data = ''
+        self.headers.clear()
 
     def done(self):
         self.headers['Content-Length'] = len(self.data)
@@ -115,9 +135,6 @@ class RapidServ(object):
         # must be improved.
         Locate(spin)
 
-        # NonPersistentConnection(spin)
-
-        PersistentConnection(spin)
         # InvalidRequest(client)
 
         xmap(spin, CLOSE, lambda con, err: lose(con))
@@ -190,18 +207,33 @@ class RequestHandle(object):
     def __init__(self, spin):
         self.request = None
         xmap(spin, TransferHandle.DONE, self.process)
+
+        # It will not be spawned if it is a websocket connection.
         xmap(spin, TmpFile.DONE,  
                    lambda spin, fd, data: spawn(spin, 
                                  RequestHandle.DONE, self.request))
 
     def process(self, spin, request, data):
-        size         = int(request.headers.get('content-length', '0'))
         self.request = request
+        contype      = request.headers.get('connection', '').lower()
+        uptype       = request.headers.get('upgrade', '').lower()
+
+        if contype == 'upgrade' and uptype == 'websocket':
+            spawn(spin, RequestHandle.DONE, request)
+        else:
+            self.accumulate(spin, data)
+
+    def accumulate(self, spin, data):
+        size = int(self.request.headers.get('content-length', '0'))
+
+        NonPersistentConnection(spin)
+        # PersistentConnection(spin)
 
         if RequestHandle.MAX_SIZE <= size:
-            spawn(spin, RequestHandle.OVERFLOW, request)
+            spawn(spin, RequestHandle.OVERFLOW, self.request)
         else:
-            TmpFile(spin, data, size, request.fd)
+            TmpFile(spin, data, size, self.request.fd)
+
 
 class MethodHandle(object):
     def __init__(self, spin):
@@ -329,6 +361,7 @@ def make(searchpath, folder):
     from os.path import join, abspath, dirname
     searchpath = join(dirname(abspath(searchpath)), folder)
     return searchpath
+
 
 
 
