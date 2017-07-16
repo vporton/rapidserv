@@ -13,7 +13,7 @@ from urlparse import parse_qs
 from cgi import FieldStorage
 from tempfile import TemporaryFile as tmpfile
 
-from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_KEEPALIVE
 from os.path import getsize
 from mimetypes import guess_type
 from os.path import isfile, join, abspath, basename, dirname
@@ -54,19 +54,21 @@ class Spin(network.Spin):
         self.add_header(('Content-Type', mimetype))
         self.data = str(data)
 
-    def handshake(self, protocol, key):
+    def handshake(self, request, protocol=''):
         """
         Do websocket handshake.
         """
 
+        key    = request.headers['sec-websocket-key']
         GUID   = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
         accept = base64.b64encode(hashlib.sha1('%s%s' % (key, GUID)).digest())
 
         self.set_response('HTTP/1.1 101 Switching Protocols')
-        self.add_header(('Upgrade', 'websocket'), ('Connection', 'Upgrade'), 
-        ('Sec-Websocket-Protocol', protocol),
-        # ('Sec-Websocket-version', '13'),
+        self.add_header(('Upgrade', 'websocket'), ('Connection', 'Keep-alive, Upgrade'), 
+        # ('Sec-Websocket-Protocol', protocol),
+        ('Sec-Websocket-version', '13'),
         ('Sec-Websocket-Accept', accept))
+        WebSocket(self)
 
         self.send_headers()
         self.dump(self.data)
@@ -109,7 +111,6 @@ class RapidServ(object):
         self.local        = network.Spin(sock)
         self.local.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
-
     def bind(self, addr, port, backlog):
         Server(self.local, lambda sock: Spin(sock, self)) 
         self.local.bind((addr, port))
@@ -128,6 +129,8 @@ class RapidServ(object):
         core.gear.mainloop()
 
     def handle_accept(self, local, spin):
+        spin.sock.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
+
         Stdin(spin)
         Stdout(spin)
         AccUntil(spin)
@@ -221,7 +224,7 @@ class RequestHandle(object):
         contype      = request.headers.get('connection', '').lower()
         uptype       = request.headers.get('upgrade', '').lower()
 
-        if contype == 'upgrade' and uptype == 'websocket':
+        if  'upgrade' in contype or  'websocket' in uptype:
             spawn(spin, RequestHandle.DONE, request)
         else:
             self.accumulate(spin, data)
@@ -414,4 +417,5 @@ class WebSocket(object):
         size = self.calc_payload(len(payload))
         self.spin.dump('%s%s%s' % (fin, size, payload))
     
+
 
