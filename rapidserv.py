@@ -22,6 +22,22 @@ import argparse
 import hashlib
 import base64
 
+OP_STREAM = 0x0
+OP_TEXT = 0x1
+OP_BINARY = 0x2
+OP_CLOSE = 0x8
+OP_PING = 0x9
+OP_PONG = 0xA
+
+HEADERB1 = 1
+HEADERB2 = 3
+LENGTHSHORT = 4
+LENGTHLONG = 5
+MASK = 6
+PAYLOAD = 7
+
+CONTROL_OPCODE = set([OP_CLOSE, OP_PING, OP_PONG, OP_BINARY, OP_STREAM])
+
 class Headers(dict):
     def __init__(self, data):
         for ind in data:
@@ -129,7 +145,7 @@ class RapidServ(object):
         core.gear.mainloop()
 
     def handle_accept(self, local, spin):
-        spin.sock.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
+        # spin.sock.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
 
         Stdin(spin)
         Stdout(spin)
@@ -139,7 +155,7 @@ class RapidServ(object):
         MethodHandle(spin)
 
         # must be improved.
-        Locate(spin)
+        # Locate(spin)
 
         # InvalidRequest(client)
 
@@ -386,17 +402,23 @@ class WebSocket(object):
             return 2
 
     def decode(self, spin, data):
+        # Spawns LOAD only if it is a text message.
+        if ord(data[0]) & 0xF == OP_TEXT:
+            spin.drive(self.LOAD, self.build_msg(data))
+
+    def build_msg(self, data):
         arr0  = [ord(ind) for ind in data]
         pos   = self.calc_mask_pos(arr0[1])
         arr1  = []
         masks = [m for m in arr0[pos : pos+4]]
+
         indj  = 0
         seq0  = xrange(pos + 4, len(arr0))
         seq1  = xrange(0, len(arr0))
 
         for indi, indj in zip(seq0, seq1):
             arr1.append(chr(arr0[indi] ^ masks[indj % 4]))
-        spin.drive(self.LOAD, ''.join(arr1))
+        return ''.join(arr1)
 
     def calc_payload(self, size):
         if size < 126:
@@ -417,5 +439,6 @@ class WebSocket(object):
         size = self.calc_payload(len(payload))
         self.spin.dump('%s%s%s' % (fin, size, payload))
     
+
 
 

@@ -2,12 +2,12 @@ from rapidserv import CLOSE, WebSocket
 
 class ChatServer(object):
     def __init__(self):
-        self.pool = []
+        self.pool = set()
 
     def add_user(self, con):
         con.add_map(CLOSE, self.del_user)
         con.add_map(WebSocket.LOAD, self.echo_msg)
-        self.pool.append(con)
+        self.pool.add(con)
 
     def echo_msg(self, con, data):
         for ind in self.pool: ind.wsdump(data)
