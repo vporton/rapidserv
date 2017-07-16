@@ -19,12 +19,14 @@ from mimetypes import guess_type
 from os.path import isfile, join, abspath, basename, dirname
 from jinja2 import Template, FileSystemLoader, Environment
 import argparse
+import hashlib
+import base64
 
 class Headers(dict):
     def __init__(self, data):
         for ind in data:
             field, sep, value = ind.partition(':')
-            self[field.lower()] = value
+            self[field.lower()] = value.strip()
 
 class Spin(network.Spin):
     def __init__(self, sock, app):
@@ -36,9 +38,6 @@ class Spin(network.Spin):
         self.wsaccept = ''
 
         self.add_default_headers()
-
-    def set_wsaccept(self, key):
-        self.wsaccept = key
 
     def add_default_headers(self):
         self.set_response('HTTP/1.1 200 OK')
@@ -55,15 +54,19 @@ class Spin(network.Spin):
         self.add_header(('Content-Type', mimetype))
         self.data = str(data)
 
-    def handshake(self, protocol):
+    def handshake(self, protocol, key):
         """
         Do websocket handshake.
         """
 
+        GUID   = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+        accept = base64.b64encode(hashlib.sha1('%s%s' % (key, GUID)).digest())
+
         self.set_response('HTTP/1.1 101 Switching Protocols')
         self.add_header(('Upgrade', 'websocket'), ('Connection', 'Upgrade'), 
         ('Sec-Websocket-Protocol', protocol),
-        ('Sec-Websocket-Accept', self.wsaccept))
+        # ('Sec-Websocket-version', '13'),
+        ('Sec-Websocket-Accept', accept))
 
         self.send_headers()
         self.dump(self.data)
@@ -362,14 +365,53 @@ def make(searchpath, folder):
     searchpath = join(dirname(abspath(searchpath)), folder)
     return searchpath
 
+class WebSocket(object):
+    LOAD = get_event()
 
+    def __init__(self, spin):
+        self.spin = spin
+        spin.add_map(LOAD, self.decode)
+        spin.wsdump = self.wsdump
 
+    def calc_mask_pos(self, value):
+        size = value & 127
+        if size == 126:
+            return 4
+        elif size == 127:
+            return 10
+        else:
+            return 2
 
+    def decode(self, spin, data):
+        arr0  = [ord(ind) for ind in data]
+        pos   = self.calc_mask_pos(arr0[1])
+        arr1  = []
+        masks = [m for m in arr0[pos : pos+4]]
+        indj  = 0
+        seq0  = xrange(pos + 4, len(arr0))
+        seq1  = xrange(0, len(arr0))
 
+        for indi, indj in zip(seq0, seq1):
+            arr1.append(chr(arr0[indi] ^ masks[indj % 4]))
+        spin.drive(self.LOAD, ''.join(arr1))
 
+    def calc_payload(self, size):
+        if size < 126:
+            return chr(0 | size)
+        elif size < (2 ** 16) - 1:
+            return chr(0 | 126) + struct.pack(">H", size)
+        else:
+            return chr(0 | 127) + struct.pack(">Q", size)
 
+    def wsdump(self, payload):
+        """
+        """
 
-
-
-
+        # Send an entire message as one frame.
+        # Append 'FIN' flag to the message.
+        fin = chr(0x80 |0x01)
+        
+        size = self.calc_payload(len(payload))
+        self.spin.dump('%s%s%s' % (fin, size, payload))
+    
 
