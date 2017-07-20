@@ -710,7 +710,7 @@ class WebSocket(object):
             payload.extend(data)
 
         # self.sendq.append((opcode, payload))
-        payload[:0] = chr(opcode)
+        # payload[:0] = chr(opcode)
         self.spin.dump(payload)
 
     def _parseMessage(self, byte):
