@@ -672,6 +672,10 @@ class WebSocket(object):
             opcode = TEXT
         self._sendMessage(False, opcode, data)
 
+    # TODO
+    def wsdump(self, data):
+        self.sendMessage(data)
+
     def _sendMessage(self, fin, opcode, data):
 
         payload = bytearray()
