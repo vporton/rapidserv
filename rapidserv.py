@@ -457,7 +457,7 @@ class WebSocket(object):
         self.maxpayload = MAXPAYLOAD
 
         # spin.add_map(LOAD, self.decode)
-        # spin.wsdump = self.wsdump
+        spin.wsdump = self.wsdump  # hack?
 
         spin.add_map(LOAD, self._handleData)
 
@@ -710,7 +710,7 @@ class WebSocket(object):
             payload.extend(data)
 
         # self.sendq.append((opcode, payload))
-        payload[:0] = opcode
+        payload[:0] = chr(opcode)
         self.spin.dump(payload)
 
     def _parseMessage(self, byte):
