@@ -430,7 +430,6 @@ class WebSocket(object):
 
         # self.handshaked = False
         self.headerbuffer = bytearray()
-        self.headertoread = 2048
 
         self.fin = 0
         self.data = bytearray()
