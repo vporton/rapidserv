@@ -453,7 +453,7 @@ class WebSocket(object):
         self.state = HEADERB1
 
         # restrict the size of header and payload for security reasons
-        self.maxheader = MAXHEADER
+        # self.maxheader = MAXHEADER  # not used
         self.maxpayload = MAXPAYLOAD
 
         # spin.add_map(LOAD, self.decode)
