@@ -10,7 +10,7 @@ from untwisted.debug import on_event, on_all
 from untwisted import network
 
 import struct
-from collections import deque
+# from collections import deque
 import codecs
 from urlparse import parse_qs
 from cgi import FieldStorage
@@ -40,6 +40,15 @@ MASK = 6
 PAYLOAD = 7
 
 CONTROL_OPCODE = set([OP_CLOSE, OP_PING, OP_PONG, OP_BINARY, OP_STREAM])
+
+import sys
+VER = sys.version_info[0]
+
+def _check_unicode(val):
+    if VER >= 3:
+        return isinstance(val, str)
+    else:
+        return isinstance(val, unicode)
 
 class Headers(dict):
     def __init__(self, data):
@@ -439,7 +448,7 @@ class WebSocket(object):
         self.frag_buffer = None
         self.frag_decoder = codecs.getincrementaldecoder('utf-8')(errors='strict')
         self.closed = False
-        self.sendq = deque()
+        # self.sendq = deque()
 
         self.state = HEADERB1
 
@@ -447,125 +456,125 @@ class WebSocket(object):
         self.maxheader = MAXHEADER
         self.maxpayload = MAXPAYLOAD
 
-        spin.add_map(LOAD, self.decode)
-        spin.wsdump = self.wsdump
+        # spin.add_map(LOAD, self.decode)
+        # spin.wsdump = self.wsdump
 
-        def _handlePacket(self):
-            if self.opcode == CLOSE:
+        spin.add_map(LOAD, self._handleData)
+
+    def _handlePacket(self):
+        if self.opcode == CLOSE:
+            pass
+        elif self.opcode == STREAM:
+            pass
+        elif self.opcode == TEXT:
+            pass
+        elif self.opcode == BINARY:
+            pass
+        elif self.opcode == PONG or self.opcode == PING:
+            if len(self.data) > 125:
+                raise Exception('control frame length can not be > 125')
+        else:
+            # unknown or reserved opcode so just close
+            raise Exception('unknown opcode')
+
+        if self.opcode == CLOSE:
+            status = 1000
+            reason = u''
+            length = len(self.data)
+
+            if length == 0:
                 pass
-            elif self.opcode == STREAM:
-                pass
-            elif self.opcode == TEXT:
-                pass
-            elif self.opcode == BINARY:
-                pass
-            elif self.opcode == PONG or self.opcode == PING:
-                if len(self.data) > 125:
-                    raise Exception('control frame length can not be > 125')
-            else:
-                # unknown or reserved opcode so just close
-                raise Exception('unknown opcode')
+            elif length >= 2:
+                status = struct.unpack_from('!H', self.data[:2])[0]
+                reason = self.data[2:]
 
-            if self.opcode == CLOSE:
-                status = 1000
-                reason = u''
-                length = len(self.data)
-
-                if length == 0:
-                    pass
-                elif length >= 2:
-                    status = struct.unpack_from('!H', self.data[:2])[0]
-                    reason = self.data[2:]
-
-                    if status not in _VALID_STATUS_CODES:
-                        status = 1002
-
-                    if len(reason) > 0:
-                        try:
-                            reason = reason.decode('utf8', errors='strict')
-                        except:
-                            status = 1002
-                else:
+                if status not in _VALID_STATUS_CODES:
                     status = 1002
 
-                self.close(status, reason)
-                return
+                if len(reason) > 0:
+                    try:
+                        reason = reason.decode('utf8', errors='strict')
+                    except:
+                        status = 1002
+            else:
+                status = 1002
 
-            elif self.fin == 0:
-                if self.opcode != STREAM:
-                    if self.opcode == PING or self.opcode == PONG:
-                        raise Exception('control messages can not be fragmented')
+            self.close(status, reason)
+            return
 
-                    self.frag_type = self.opcode
-                    self.frag_start = True
-                    self.frag_decoder.reset()
+        elif self.fin == 0:
+            if self.opcode != STREAM:
+                if self.opcode == PING or self.opcode == PONG:
+                    raise Exception('control messages can not be fragmented')
 
-                    if self.frag_type == TEXT:
-                        self.frag_buffer = []
-                        utf_str = self.frag_decoder.decode(self.data, final=False)
-                        if utf_str:
-                            self.frag_buffer.append(utf_str)
-                    else:
-                        self.frag_buffer = bytearray()
-                        self.frag_buffer.extend(self.data)
+                self.frag_type = self.opcode
+                self.frag_start = True
+                self.frag_decoder.reset()
 
+                if self.frag_type == TEXT:
+                    self.frag_buffer = []
+                    utf_str = self.frag_decoder.decode(self.data, final=False)
+                    if utf_str:
+                        self.frag_buffer.append(utf_str)
                 else:
-                    if self.frag_start is False:
-                        raise Exception('fragmentation protocol error')
-
-                    if self.frag_type == TEXT:
-                        utf_str = self.frag_decoder.decode(self.data, final=False)
-                        if utf_str:
-                            self.frag_buffer.append(utf_str)
-                    else:
-                        self.frag_buffer.extend(self.data)
+                    self.frag_buffer = bytearray()
+                    self.frag_buffer.extend(self.data)
 
             else:
-                if self.opcode == STREAM:
-                    if self.frag_start is False:
-                        raise Exception('fragmentation protocol error')
+                if self.frag_start is False:
+                    raise Exception('fragmentation protocol error')
 
-                    if self.frag_type == TEXT:
-                        utf_str = self.frag_decoder.decode(self.data, final=True)
+                if self.frag_type == TEXT:
+                    utf_str = self.frag_decoder.decode(self.data, final=False)
+                    if utf_str:
                         self.frag_buffer.append(utf_str)
-                        self.data = u''.join(self.frag_buffer)
-                    else:
-                        self.frag_buffer.extend(self.data)
-                        self.data = self.frag_buffer
-
-                    self.handleMessage()
-
-                    self.frag_decoder.reset()
-                    self.frag_type = BINARY
-                    self.frag_start = False
-                    self.frag_buffer = None
-
-                elif self.opcode == PING:
-                    self._sendMessage(False, PONG, self.data)
-
-                elif self.opcode == PONG:
-                    pass
-
                 else:
-                    if self.frag_start is True:
-                        raise Exception('fragmentation protocol error')
+                    self.frag_buffer.extend(self.data)
 
-                    if self.opcode == TEXT:
-                        try:
-                            self.data = self.data.decode('utf8', errors='strict')
-                        except Exception as exp:
-                            raise Exception('invalid utf-8 payload')
+        else:
+            if self.opcode == STREAM:
+                if self.frag_start is False:
+                    raise Exception('fragmentation protocol error')
 
-                    # self.handleMessage()
-                    if self.opcode == TEXT:
-                        spin.drive(self.TEXT, self.data)
-                    elif self.opcode == BINARY:
-                        spin.drive(self.BINARY, self.data)
+                if self.frag_type == TEXT:
+                    utf_str = self.frag_decoder.decode(self.data, final=True)
+                    self.frag_buffer.append(utf_str)
+                    self.data = u''.join(self.frag_buffer)
+                else:
+                    self.frag_buffer.extend(self.data)
+                    self.data = self.frag_buffer
 
-    #####################################################################
+                self.handleMessage()
 
-    def _handleData(self):
-        data = self.client.recv(16384)
+                self.frag_decoder.reset()
+                self.frag_type = BINARY
+                self.frag_start = False
+                self.frag_buffer = None
+
+            elif self.opcode == PING:
+                self._sendMessage(False, PONG, self.data)
+
+            elif self.opcode == PONG:
+                pass
+
+            else:
+                if self.frag_start is True:
+                    raise Exception('fragmentation protocol error')
+
+                if self.opcode == TEXT:
+                    try:
+                        self.data = self.data.decode('utf8', errors='strict')
+                    except Exception as exp:
+                        raise Exception('invalid utf-8 payload')
+
+                # self.handleMessage()
+                if self.opcode == TEXT:
+                    self.spin.drive(self.TEXT, self.data)
+                elif self.opcode == BINARY:
+                    self.spin.drive(self.BINARY, self.data)
+
+    def _handleData(self, spin, data):
+        # data = self.client.recv(16384)
         if not data:
             raise Exception("remote socket closed")
 
@@ -597,31 +606,31 @@ class WebSocket(object):
         finally:
             self.closed = True
 
-    def _sendBuffer(self, buff, send_all=False):
-        size = len(buff)
-        tosend = size
-        already_sent = 0
-
-        while tosend > 0:
-            try:
-                # i should be able to send a bytearray
-                sent = self.client.send(buff[already_sent:])
-                if sent == 0:
-                    raise RuntimeError('socket connection broken')
-
-                already_sent += sent
-                tosend -= sent
-
-            except socket.error as e:
-                # if we have full buffers then wait for them to drain and try again
-                if e.errno in [errno.EAGAIN, errno.EWOULDBLOCK]:
-                    if send_all:
-                        continue
-                    return buff[already_sent:]
-                else:
-                    raise e
-
-        return None
+    # def _sendBuffer(self, buff, send_all=False):
+    #     size = len(buff)
+    #     tosend = size
+    #     already_sent = 0
+    #
+    #     while tosend > 0:
+    #         try:
+    #             # i should be able to send a bytearray
+    #             sent = self.client.send(buff[already_sent:])
+    #             if sent == 0:
+    #                 raise RuntimeError('socket connection broken')
+    #
+    #             already_sent += sent
+    #             tosend -= sent
+    #
+    #         except socket.error as e:
+    #             # if we have full buffers then wait for them to drain and try again
+    #             if e.errno in [errno.EAGAIN, errno.EWOULDBLOCK]:
+    #                 if send_all:
+    #                     continue
+    #                 return buff[already_sent:]
+    #             else:
+    #                 raise e
+    #
+    #     return None
 
     def sendFragmentStart(self, data):
         """
@@ -696,7 +705,9 @@ class WebSocket(object):
         if length > 0:
             payload.extend(data)
 
-        self.sendq.append((opcode, payload))
+        # self.sendq.append((opcode, payload))
+        payload[:0] = opcode
+        self.spin.dump(payload)
 
     def _parseMessage(self, byte):
         # read in the header
@@ -857,7 +868,7 @@ class WebSocket(object):
             else:
                 self.index += 1
 
-                    # def calc_mask_pos(self, value):
+    # def calc_mask_pos(self, value):
     #     size = value & 127
     #     if size == 126:
     #         return 4
